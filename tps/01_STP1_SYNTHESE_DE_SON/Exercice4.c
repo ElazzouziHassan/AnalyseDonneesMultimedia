@@ -42,6 +42,7 @@ void write_wav_header(FILE *f, int sample_rate, int num_samples) {
 int main() {
     int n = FE * DUREE * N_NOTES;  // Nombre total d'échantillons
     int16_t T[n];                  // Tableau pour stocker les échantillons
+    
     int index = 0;
 
     // Génération des échantillons pour chaque note
