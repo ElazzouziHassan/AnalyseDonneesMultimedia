@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <math.h>
 
 #define F 440        // Fréquence du signal en Hz
@@ -10,10 +11,10 @@
 void write_wav_header(FILE *f, int sample_rate, int num_samples) {
     int byte_rate = sample_rate * sizeof(int16_t) * 1; // Mono, 16 bits
     int data_chunk_size = num_samples * sizeof(int16_t);
+    int32_t file_size = 36 + data_chunk_size;
 
     // Écriture de l'en-tête du fichier WAV
     fwrite("RIFF", 1, 4, f);
-    int32_t file_size = 36 + data_chunk_size;
     fwrite(&file_size, 4, 1, f);
     fwrite("WAVE", 1, 4, f);
     fwrite("fmt ", 1, 4, f);
@@ -39,24 +40,49 @@ void write_wav_header(FILE *f, int sample_rate, int num_samples) {
 
 int main() {
     int n = FE * DUREE;  // Nombre d'échantillons
-    int16_t T[n];        // Tableau pour stocker les échantillons
+    int16_t *T = malloc(n * sizeof(int16_t));
+    int16_t *TDOUBLE = malloc(n * sizeof(int16_t));
+    int16_t *TTRIPLE = malloc(n * sizeof(int16_t));
+    int16_t *TFINAL = malloc(n * sizeof(int16_t));
+
+    if (!T || !TDOUBLE || !TTRIPLE || !TFINAL) {
+        perror("Erreur d'allocation mémoire");
+        free(T); free(TDOUBLE); free(TTRIPLE); free(TFINAL);
+        return 1;
+    }
 
     // Génération des échantillons
     for (int i = 0; i < n; i++) {
         double t = (double)i / FE;
         T[i] = (int16_t)(A * sin(2 * M_PI * F * t));
+        TDOUBLE[i] = (int16_t)(A * sin(2 * M_PI * F * 2 * t));
+        TTRIPLE[i] = (int16_t)(A * sin(2 * M_PI * F * 3 * t));
+        TFINAL[i] = T[i] + TDOUBLE[i] + TTRIPLE[i];
     }
 
     // Enregistrement dans un fichier WAV
     FILE *f = fopen("La.wav", "wb");
     if (f == NULL) {
         perror("Erreur à l'ouverture du fichier");
+        free(T); free(TDOUBLE); free(TTRIPLE); free(TFINAL);
         return 1;
     }
 
     write_wav_header(f, FE, n);
-    fwrite(T, sizeof(int16_t), n, f);
+    if (fwrite(TFINAL, sizeof(int16_t), n, f) != (size_t)n) {
+        perror("Erreur lors de l'écriture dans le fichier");
+        fclose(f);
+        free(T); free(TDOUBLE); free(TTRIPLE); free(TFINAL);
+        return 1;
+    }
 
     fclose(f);
+
+    // Libération de la mémoire
+    free(T);
+    free(TDOUBLE);
+    free(TTRIPLE);
+    free(TFINAL);
+
     return 0;
 }
